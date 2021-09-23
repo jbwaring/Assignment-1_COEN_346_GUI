@@ -29,6 +29,7 @@
 
 - (void) measureChangeRatio:(int)numberOfChanges andStringLenght:(int)stringLength{
     self->changeRatio = 1.0 - (double)numberOfChanges/(double)stringLength;
+    
     self->acceptableChange = self->changeRatio > 0.05 ? true : false;
 }
 
@@ -37,9 +38,11 @@
     return  (a == b) ? 0 : 1;
 }
 
+
+
 + (int) computeDistance:(NSString*)firstString andSecond:(NSString*)secondString andCurrentInstance:(LevenshteinDistance*)instance {
     int distanceMatrix[firstString.length][secondString.length];
-    
+
     for(int i = 0; i<=firstString.length; i++){
         for (int j = 0; j <= secondString.length; j++) {
             if (i == 0) {
@@ -47,16 +50,28 @@
             }else if (j == 0){
                 distanceMatrix[i][j] = i;
             }else {
+
+// dp[i][j] = min(dp[i - 1][j - 1] + SubstitutionCost(str1.charAt(i - 1), str2.charAt(j - 1)) ||| dp[i - 1][j] + 1 |||, dp[i][j - 1] + 1);
+
                 int first = distanceMatrix[i - 1][j - 1] + [self substitutionCost:[firstString characterAtIndex: i-1 ] and:[secondString characterAtIndex: j-1 ]];
-                int second = distanceMatrix[i - 1][j] + 1 ;
-                int third = distanceMatrix[i][j - 1] + 1;
+
+                int second = distanceMatrix[i - 1][j];
+                second += 1;
+
+                int third = distanceMatrix[i][j - 1];
+                third += 1;
                 distanceMatrix[i][j] = [self min:first and:second and:third];
             }
         }
     }
-    
+
+
     [instance measureChangeRatio:(int)distanceMatrix[firstString.length][secondString.length] andStringLenght:(int)firstString.length];
+    
+//    NSLog(@"Using mine: %d, using Internet: %d", distanceMatrix[firstString.length][secondString.length],[firstString levenshteinDistanceFromString:secondString]);
     return distanceMatrix[firstString.length][secondString.length];
+    
+
 }
 
 - (bool) isAcceptableChange {

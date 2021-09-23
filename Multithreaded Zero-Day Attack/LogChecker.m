@@ -32,10 +32,17 @@
 
     LevenshteinDistance *myLevenshteinInstance = [[LevenshteinDistance alloc] init];
     
-    [LevenshteinDistance computeDistance:lineToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ];
-    if(![myLevenshteinInstance isAcceptableChange]){
+    int numberOfTrials = lineToCheck.length - vulnerabilityPattern.length;
+    
+    for(int i = 0; i<= numberOfTrials; i++){
+        NSString *subStringToCheck = [lineToCheck substringWithRange:NSMakeRange(i, vulnerabilityPattern.length)];
+        [LevenshteinDistance computeDistance:subStringToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ];
+    }
+//    [LevenshteinDistance computeDistance:lineToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ];
+    if([myLevenshteinInstance isAcceptableChange]){
         [self atomicVulnerabilityCountIncrement];
     }
+    
     [self atomicLineCountIncrement];
 }
 
@@ -87,7 +94,7 @@
 - (void) readFile {
     double deltaVulnerabilityAverage = -1;
     int threadCount = 64;
-
+    int maxThreadCount = 64;
     
     
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -108,8 +115,8 @@
             }
         }else{
             threadCount = threadCount + 2;
-            if(threadCount > 64){
-                threadCount = 64;
+            if(threadCount > maxThreadCount){
+                threadCount = maxThreadCount;
             }
         }
         
