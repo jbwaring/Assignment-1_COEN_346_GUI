@@ -36,7 +36,7 @@ NSString *myPath;
 };
 
 
-- (IBAction)selectFile:(id)sender { //Select File Button
+- (IBAction)selectFile:(id)sender { //Select File Action
     NSOpenPanel *panel = [NSOpenPanel openPanel];
     [panel setCanChooseFiles:YES];
     [panel setCanChooseDirectories:NO];
