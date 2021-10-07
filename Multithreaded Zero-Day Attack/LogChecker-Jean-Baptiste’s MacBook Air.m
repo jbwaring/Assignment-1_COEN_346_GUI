@@ -51,9 +51,6 @@
 - (NSThread*) createThread:(NSString*) myLine {
     NSRange myRange = NSMakeRange(41, myLine.length-41); //exact number directly determined by looking at the file;
     NSString *cleanedLine = [myLine substringWithRange:myRange];
-    NSArray *splitString = [myLine componentsSeparatedByString:@"\t"];
-//    NSString *cleanedLine = splitString[3]; //That Keeps the log in front LOG:XXXXXX
-//    NSLog(cleanedLine);
     NSThread *myThread = [[NSThread alloc] initWithTarget:self selector:@selector(workerThread:) object:cleanedLine];
     [myThread start];
     [self->threadsArray addObject:myThread];
@@ -108,6 +105,10 @@
                                                          userInfo: nil repeats:YES];
     });
     
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    NSLog(@"%@", [NSString stringWithFormat:@"%@/%@", @"GPU Device Set - Debug Description : ",  [device debugDescription]]);
+    
+    
     while(!feof(file))
     {
         int threadNumber = 0 ;
@@ -137,8 +138,7 @@
         
         threadNumber = (int)threadsArray.count;
         sharedThreadCount = threadNumber;
-        
-        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned]. 
+        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned].
             
         deltaVulnerabilityAverage = (self->approximateVulnerabilityAverage - previousVulnerabilityAverage)/previousVulnerabilityAverage * 100;
         
