@@ -75,39 +75,43 @@
     file = fopen(pathConvertedToUTF8, "r"); // Use the common C fopen() (in read mode)
 }
 
-- (void) onTick:(NSTimer *)timer {
-    NSString *updateThreadWorkerCountMessage = [NSString stringWithFormat:@"Worker Count (Threads) : %lld", sharedThreadCount];
-        NSString *updateVulnerabilityRateMessage = [NSString stringWithFormat:@"Approximate Vulnerability Rate : %f", self->approximateVulnerabilityAverage];
-        NSString *updateVulnerabilityCountMessage = [NSString stringWithFormat:@"Vulnerability Count : %lld", self->vulnerabilityCount];
-        NSNumber *updateProgressBarMessage = [[NSNumber alloc] initWithDouble:( (double)lineCheckedCount / 200000.0 * 10000)];
-    NSNumber *updateLevelIndicatorMessage = [[NSNumber alloc] initWithLong:sharedThreadCount];
+- (void) onTick:(NSTimer *)timer { // UI Updating Function. Everytime the NSTimer Ticks, this will be the entry point. I use NSNotificationCenter to share information between threads. I send messages to this notifications center and then have the UI be listening for those messages. This has very little performance impact to the main task since this is performed on another thread.
+    
+    NSString *updateThreadWorkerCountMessage = [NSString stringWithFormat:@"Worker Count (Threads) : %lld", sharedThreadCount]; // Create the UI Message including the current number of threads
+        NSString *updateVulnerabilityRateMessage = [NSString stringWithFormat:@"Approximate Vulnerability Rate : %f", self->approximateVulnerabilityAverage]; // Create the UI Message including the current approximate vulnerability rate
+        NSString *updateVulnerabilityCountMessage = [NSString stringWithFormat:@"Vulnerability Count : %lld", self->vulnerabilityCount]; // Create the UI Message including the current vulnerability count
+        NSNumber *updateProgressBarMessage = [[NSNumber alloc] initWithDouble:( (double)lineCheckedCount / 200000.0 * 10000)]; // Create the value to update the Progress Bar. Progress bar has 10,000 steps, which is fined enough not to be noticed.
+    NSNumber *updateLevelIndicatorMessage = [[NSNumber alloc] initWithLong:sharedThreadCount]; //Create an NSNumber with long integer (NSNotifications use Objects and thus we need to perform this convertion.
         
         dispatch_async(dispatch_get_main_queue(), ^(void){
-            [NSNotificationCenter.defaultCenter postNotificationName:@"changeWorkerThreadCount" object:updateThreadWorkerCountMessage];
-            [NSNotificationCenter.defaultCenter postNotificationName:@"changeVulnerabilityRate" object:updateVulnerabilityRateMessage];
-            [NSNotificationCenter.defaultCenter postNotificationName:@"changeVulnerabilityCount" object:updateVulnerabilityCountMessage];
-            [NSNotificationCenter.defaultCenter postNotificationName:@"changeProgressBarIndicator" object:updateProgressBarMessage];
-            [NSNotificationCenter.defaultCenter postNotificationName:@"changeLevelIndicator" object:updateLevelIndicatorMessage];
+            [NSNotificationCenter.defaultCenter postNotificationName:@"changeWorkerThreadCount" object:updateThreadWorkerCountMessage]; // Send the message with id "changeWorkerThreadCount" to the notification center
+            [NSNotificationCenter.defaultCenter postNotificationName:@"changeVulnerabilityRate" object:updateVulnerabilityRateMessage]; // Send the message with id "changeVulnerabilityRate" to the notification center
+            [NSNotificationCenter.defaultCenter postNotificationName:@"changeVulnerabilityCount" object:updateVulnerabilityCountMessage]; // Send the message with id "changeVulnerabilityCount" to the notification center
+            [NSNotificationCenter.defaultCenter postNotificationName:@"changeProgressBarIndicator" object:updateProgressBarMessage]; // Send the message with id "changeProgressBarIndicator" to the notification center
+            [NSNotificationCenter.defaultCenter postNotificationName:@"changeLevelIndicator" object:updateLevelIndicatorMessage]; // Send the message with id "changeLevelIndicator" to the notification center
         });
 }
 
-- (void) readFile {
-    double deltaVulnerabilityAverage = -1;
+- (void) readFile { // "main function" that supervises the operation
+    
+    double deltaVulnerabilityAverage = -1; // Initialy set the vulnerability average to be -1 (that ensures we start with 2 threads )
     int threadCount = 64;
     int maxThreadCount = 64;
     
     
-    dispatch_async(dispatch_get_main_queue(), ^{
+    dispatch_async(dispatch_get_main_queue(), ^{ //Dispatch the UI Updater Timer on another thread with selector OnTick and will tick ~3 times per seconds (and autostart). We keep a pointer to the timer in order to be able to message this thread to stop when we have finished reading the file (no need to update the UI since we are not doing anything anymore. Also we might have deleted the LogChecker Instance.
         self->timer  = [NSTimer scheduledTimerWithTimeInterval: 0.3
                                                          target: self
                                                          selector:@selector(onTick:)
-                                                         userInfo: nil repeats:YES];
+                                                         userInfo: nil repeats:YES]; // Create Timer and rembember a poiter to it.
     });
     
-    while(!feof(file))
+    
+    while(!feof(file)) // feof() returns true iff we are at the end of file indicator of the inputed stream (so the loop will run for as long as lines are remaining)
     {
-        int threadNumber = 0 ;
+        int threadNumber = 0 ; // Set the initial threadNumber to 0
         double previousVulnerabilityAverage = self->approximateVulnerabilityAverage;
+        
         if(deltaVulnerabilityAverage < 0){
             threadCount = threadCount - 2;
             if(threadCount <= 0){
@@ -140,59 +144,62 @@
         
     }
     
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self->timer invalidate];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ // 2 Seconds after we have finished reading the file, kill the timer. 2 seconds timeout is just a very conservative way of making sure we have the lastest available information shown on the UI.
+        [self->timer invalidate]; // Remove the timer.
         });
-    fclose(file);
+    fclose(file); // Close the file, we are done.
 }
 
 
-- (NSString*) getFilePath {
+- (NSString*) getFilePath { //Getter for filePath
     return filePath;
 }
 
 
-+ (NSString*) readLineAsNSString:(FILE*)file {
-    char buffer[4096];
-    NSMutableString *result = [NSMutableString stringWithCapacity:256];
-    int charsRead;
++ (NSString*) readLineAsNSString:(FILE*)file { // Read one line of the file
+    char buffer[4096]; //Create an array of Characters (4096 here)
+    
+    NSMutableString *result = [NSMutableString stringWithCapacity: 256];
+    
+    int charsRead; // Will be increment each time we find a char and serve as a stopping condition.
+    
     do {
-        if(fscanf(file, "%4095[^\n]%n%*c", buffer, &charsRead) == 1)
-            [result appendFormat:@"%s", buffer];
+        if(fscanf(file, "%4095[^\n]%n%*c", buffer, &charsRead) == 1) // if 1 means we have one succesfully matched input that is one character
+            [result appendFormat:@"%s", buffer]; // Append the buffer to the return value
         else
-            break;
-    } while(charsRead == 265);
-    return result;
+            break; // no char, give up
+    } while(charsRead == 4095); // Do it 4095 times
+    return result; //Return the result string (we should get a single Line)
 }
 
 
-- (void) atomicVulnerabilityCountIncrement {
+- (void) atomicVulnerabilityCountIncrement { // Atomically Increment the Vulnerability Count
     atomic_fetch_add(&vulnerabilityCount, 1); //Atomic operation to ensure that there is no race condition between the threads.
-    if(self->lineCheckedCount!=0){
-        self->approximateVulnerabilityAverage = (double)self->vulnerabilityCount/(double)self->lineCheckedCount;
+    if(self->lineCheckedCount!=0){ // If it is not the first line, update the average
+        self->approximateVulnerabilityAverage = (double)self->vulnerabilityCount/(double)self->lineCheckedCount; // casting to double
     }
 }
 
 
-- (void) atomicLineCountIncrement {
-    atomic_fetch_add(&lineCheckedCount, 1);
-    if(self->lineCheckedCount!=0){
-        self->approximateVulnerabilityAverage = (double)self->vulnerabilityCount/(double)self->lineCheckedCount;
+- (void) atomicLineCountIncrement { // Atomically Increment the Line Count
+    atomic_fetch_add(&lineCheckedCount, 1); //Atomic operation to ensure that there is no race condition between the threads.
+    if(self->lineCheckedCount!=0){ //If it is not the first line, update the vulnerability count (gives a second chance at updating the vulnerability count
+        self->approximateVulnerabilityAverage = (double)self->vulnerabilityCount/(double)self->lineCheckedCount; // casting to double
     }
 }
 
 
-- (int)getVulnerabilityCount {
-    return self->vulnerabilityCount;
+- (int)getVulnerabilityCount { // Getter for Vulnerability Count
+    return self->vulnerabilityCount; 
 }
 
 
 - (bool)allThreadsReturned {
     [threadsArray filterUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id object, NSDictionary *bindings) {
-        return !([object isFinished]); //If element of threadsArray points to a finished NSThread, remove it.
+        return !([object isFinished]); // If element of threadsArray points to a finished NSThread, remove it.
     }]];
     if(threadsArray.count == 0){
-        return true; //If the array is empty, all threads have been finished and removed.
+        return true; // If the array is empty, all threads have finished and have been removed.
     }
     return false; // Still waiting for some threads to finish.
 }

@@ -8,7 +8,7 @@
 #ifndef LevenshteinDistance_h
 #define LevenshteinDistance_h
 
-@interface LevenshteinDistance : NSObject //Inherits from NSObject
+@interface LevenshteinDistance : NSObject // Inherits from NSObject
 {
     double changeRatio; 
     bool acceptableChange;

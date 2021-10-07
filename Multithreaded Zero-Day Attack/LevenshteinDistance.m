@@ -51,8 +51,6 @@
                 distanceMatrix[i][j] = i;
             }else {
 
-// dp[i][j] = min(dp[i - 1][j - 1] + SubstitutionCost(str1.charAt(i - 1), str2.charAt(j - 1)) ||| dp[i - 1][j] + 1 |||, dp[i][j - 1] + 1);
-
                 int first = distanceMatrix[i - 1][j - 1] + [self substitutionCost:[firstString characterAtIndex: i-1 ] and:[secondString characterAtIndex: j-1 ]];
 
                 int second = distanceMatrix[i - 1][j];
@@ -67,24 +65,8 @@
 
 
     [instance measureChangeRatio:(int)distanceMatrix[firstString.length][secondString.length] andStringLenght:(int)firstString.length];
-
-//    NSLog(@"Using mine: %d, using Internet: %d", distanceMatrix[firstString.length][secondString.length],[firstString levenshteinDistanceFromString:secondString]);
     return distanceMatrix[firstString.length][secondString.length];
-//    int cost;
-//    if ( [firstString  isEqual: @""]) { return [secondString length];}
-//    if ( [secondString  isEqual: @""]) { return [firstString length];}
-//    if ([firstString characterAtIndex:-1] == [secondString characterAtIndex:-1]) {
-//        cost = 0;
-//    } else {
-//        cost = 1;
-//    }
-//    int first = [self computeDistance:[firstString substringWithRange:NSMakeRange(0, [firstString length] -1)]
-//                             andSecond:secondString andCurrentInstance:instance]+1;
-//    int second = [self computeDistance:firstString andSecond:[secondString substringWithRange:NSMakeRange(0, [secondString length] -1)] andCurrentInstance:instance]+1;
-//    int third = [self computeDistance:[firstString substringWithRange:NSMakeRange(0, [firstString length] -1)] andSecond:[secondString substringWithRange:NSMakeRange(0, [secondString length] -1)] andCurrentInstance:instance]+cost;
-//
-////    [instance measureChangeRatio:(int)distanceMatrix[firstString.length][secondString.length] andStringLenght:(int)firstString.length];
-//    return [self min:first and:second and:third];
+
 }
 
 - (bool) isAcceptableChange {
