@@ -10,11 +10,9 @@
 
 #import <Foundation/Foundation.h>
 #import "LogChecker.h"
-#import <stdatomic.h>
+#import <stdatomic.h> // Used for accessing C functions that give atomic variable increment.
 #import "LevenshteinDistance.h"
-#import "ViewController.h"
 #import <Cocoa/Cocoa.h>
-#import <Metal/Metal.h>
 #if __has_feature(objc_arc)
   #define DLog(format, ...) CFShow((__bridge CFStringRef)[NSString stringWithFormat:format, ## __VA_ARGS__]);
 #else
@@ -23,60 +21,58 @@
 
 @implementation LogChecker : NSObject
 
-- (void) setFilePath:(NSString *)givenFilePath{
-    filePath = givenFilePath;
+- (void) setFilePath:(NSString *)givenFilePath{ // Set the givenFilePath Property (Instance Method)
+    filePath = givenFilePath; // set the property
 }
 
 
-- (void) workerThread:(NSString*)lineToCheck
+- (void) workerThread:(NSString*)lineToCheck // Worker Thread --> Selector given as entry point to child threads
 {
 
-    LevenshteinDistance *myLevenshteinInstance = [[LevenshteinDistance alloc] init];
+    LevenshteinDistance *myLevenshteinInstance = [[LevenshteinDistance alloc] init]; // Get an instance of the Levenstein Distance
     
-    int numberOfTrials = lineToCheck.length - vulnerabilityPattern.length;
+    int numberOfTrials = lineToCheck.length - vulnerabilityPattern.length; // Number of times we need to iterate
     
     for(int i = 0; i<= numberOfTrials; i++){
-        NSString *subStringToCheck = [lineToCheck substringWithRange:NSMakeRange(i, vulnerabilityPattern.length)];
-        [LevenshteinDistance computeDistance:subStringToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ];
+        NSString *subStringToCheck = [lineToCheck substringWithRange:NSMakeRange(i, vulnerabilityPattern.length)]; //get a substring of the same length
+        [LevenshteinDistance computeDistance:subStringToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ]; // compute the levenstein distance (Class Method so we message the class, not an instance of the class but we still pass a pointer to an instance of our class to use instance methods on the result
     }
 //    [LevenshteinDistance computeDistance:lineToCheck andSecond:vulnerabilityPattern andCurrentInstance:myLevenshteinInstance ];
-    if([myLevenshteinInstance isAcceptableChange]){
-        [self atomicVulnerabilityCountIncrement];
+    if([myLevenshteinInstance isAcceptableChange]){ // If the change is acceptable
+        [self atomicVulnerabilityCountIncrement]; //Atomically Increment the number of vulnerability
     }
     
-    [self atomicLineCountIncrement];
+    [self atomicLineCountIncrement]; // In any case, increment the number of lines we have looked at (atomically because other threads want to increment it too)
 }
 
 
-- (NSThread*) createThread:(NSString*) myLine {
-    NSRange myRange = NSMakeRange(41, myLine.length-41); //exact number directly determined by looking at the file;
-    NSString *cleanedLine = [myLine substringWithRange:myRange];
-    NSArray *splitString = [myLine componentsSeparatedByString:@"\t"];
-//    NSString *cleanedLine = splitString[3]; //That Keeps the log in front LOG:XXXXXX
-//    NSLog(cleanedLine);
-    NSThread *myThread = [[NSThread alloc] initWithTarget:self selector:@selector(workerThread:) object:cleanedLine];
-    [myThread start];
-    [self->threadsArray addObject:myThread];
-    return myThread;
+- (NSThread*) createThread:(NSString*) myLine { // Instance Method that returns a pointer to a new child thread
+
+    NSRange myRange = NSMakeRange(41, myLine.length-41); // Exact number directly determined by looking at the file;
+    NSString *cleanedLine = [myLine substringWithRange:myRange]; // Get substring with required range to "clean the line"
+    NSThread *myThread = [[NSThread alloc] initWithTarget:self selector:@selector(workerThread:) object:cleanedLine]; // Create an NSThread Object and use the workerThread method as an entry point (selector) messsaging the object cleanedLine
+    [myThread start]; // Message the thread object to start working
+    [self->threadsArray addObject:myThread]; // Add the pointer to this new thread to the array keeping the list of currently executing
+    return myThread; // Return the pointer to the new thread (myThread is of type NSThread*
 }
 
 
-- (NSObject*) init:(NSString *)givenFilePath andVulnerabilityPattern:(NSString*)testVulnerabilityPattern{
+- (NSObject*) init:(NSString *)givenFilePath andVulnerabilityPattern:(NSString*)testVulnerabilityPattern{ // Overriden Class Init() --> Returns a NSObject* that is "automatically casted into" LogChecker Type since LogChecker conforms to NSObject
     
-    LogChecker* myInstance = [self init];
-    [myInstance setFilePath:givenFilePath];
-    myInstance->vulnerabilityPattern = testVulnerabilityPattern;
-    NSLog(@"Starting LogChecker on file at: %@", filePath);
-    [myInstance setFile];
-    myInstance->threadsArray = [NSMutableArray array];
-    myInstance->lineCheckedCount = 0;
-    return myInstance;
+    LogChecker* myInstance = [self init]; // Create an instance of LogChecker
+    [myInstance setFilePath:givenFilePath]; // Set the file path (Access Variable Obj-C Style Using Message and Getter/Setter)
+    myInstance->vulnerabilityPattern = testVulnerabilityPattern; // Set the Vulnerability Pattern (Access Variable C Style)
+    NSLog(@"Starting LogChecker on file at: %@", filePath); // Log to the console
+    [myInstance setFile]; // Set the file (use the path to open a file handler at the correct path
+    myInstance->threadsArray = [NSMutableArray array]; // Set the Thread Array to an empty array
+    myInstance->lineCheckedCount = 0; // Set to 0 the number of lines we have looked at
+    return myInstance; // Return a pointer to this instance of type NSObject*
 }
 
 
 - (void) setFile {
-    const char *cfilename=[filePath UTF8String];
-    file = fopen(cfilename, "r");
+    const char* pathConvertedToUTF8 = [filePath UTF8String]; // Convert the path to UTF8 to ensure compatibility (might have unicode filenames)
+    file = fopen(pathConvertedToUTF8, "r"); // Use the common C fopen() (in read mode)
 }
 
 - (void) onTick:(NSTimer *)timer {
