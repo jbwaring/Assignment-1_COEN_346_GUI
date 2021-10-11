@@ -51,6 +51,7 @@
     NSRange myRange = NSMakeRange(41, myLine.length-41); // Exact number directly determined by looking at the file;
     NSString *cleanedLine = [myLine substringWithRange:myRange]; // Get substring with required range to "clean the line"
     NSThread *myThread = [[NSThread alloc] initWithTarget:self selector:@selector(workerThread:) object:cleanedLine]; // Create an NSThread Object and use the workerThread method as an entry point (selector) messsaging the object cleanedLine
+    [myThread setQualityOfService:1.0]; //Set the Thread to the highest QoS (1.0) to ensure it gets highest priority.
     [myThread start]; // Message the thread object to start working
     [self->threadsArray addObject:myThread]; // Add the pointer to this new thread to the array keeping the list of currently executing
     return myThread; // Return the pointer to the new thread (myThread is of type NSThread*
@@ -111,7 +112,7 @@
     {
         int threadNumber = 0 ; // Set the initial threadNumber to 0
         double previousVulnerabilityAverage = self->approximateVulnerabilityAverage;
-        
+
         if(deltaVulnerabilityAverage < 0){
             threadCount = threadCount - 2;
             if(threadCount <= 0){
@@ -123,8 +124,8 @@
                 threadCount = maxThreadCount;
             }
         }
-        
-        
+
+
         
         for (int i = 1; i <= threadCount; i++)
 //            for (int i = 1; i <= threadCount; i++)
@@ -134,11 +135,11 @@
                 [self createThread:line];
             }
         }
-        
+
         threadNumber = (int)threadsArray.count;
         sharedThreadCount = threadNumber;
-        
-        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned]. 
+
+        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned].
             
         deltaVulnerabilityAverage = (self->approximateVulnerabilityAverage - previousVulnerabilityAverage)/previousVulnerabilityAverage * 100;
         
