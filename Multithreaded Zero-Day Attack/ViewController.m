@@ -57,25 +57,20 @@ NSString *myPath;
 
 - (IBAction)checkFile:(NSButton *)sender {
     
-    
-    
-    
-    
     NSLog(@"Check File Pressed!");
-    [_progressBar setHidden:false];
-    [_checkFile setStringValue:@"Stop"];
+    [_progressBar setHidden:false]; // Let the user see the progressBar at 0%/
     
     //Checking wether the path exists.
     NSLog(@"Checking wether a file at: %@ exists.", myPath);
     bool fileExistsAtUserProvidedPath = [[NSFileManager defaultManager] fileExistsAtPath: myPath]; //Returns True if a file exists at the given path.
     
     
-    if( fileExistsAtUserProvidedPath ) {
+    if(fileExistsAtUserProvidedPath) { //If we have a valid path
         
         NSLog(@"File exists.");
-        NSString *vulnerabilityPatternCopy = [_vulnerabilityPaternTextField stringValue];
+        NSString *vulnerabilityPatternCopy = [_vulnerabilityPaternTextField stringValue]; // Get a copy of the content of the TextField for Vulnerability Pattern.
         dispatch_async(dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(void){
-            //Background Thread
+            //Dispatch an instance of LogChecker and call readFile on it on a background thread. Staying here (main thread) will freeze the UI and make the user think the Application is unresponsive.
             
             
             
@@ -83,22 +78,22 @@ NSString *myPath;
             NSLog(@"myLogChecker is initialized with this file path: %@", [myLogChecker getFilePath]); //Confirming to the user that we will start reading the file.
             
 
-             [myLogChecker readFile]; //Messages the readFile method of the LogChecker class with instance myLogChecker (Starts to check the file)
+             [myLogChecker readFile]; // Messages the readFile method of the LogChecker class with instance myLogChecker (Starts to check the file)
             NSLog(@"Vulnerability Count: %d",[myLogChecker getVulnerabilityCount] );
             
         });
         
         
         
-//        readFile has returned (All worker threads are "finished" and vulerability count is final).
+//        This will be executed even if readFile is not finished. Thus, if we would like, for example, to hide the checkfile button during execution, we would have to hide it here and use an NSNotification Listener to call a selector to setHidden:NO when readFile returns.
+//        --> readFile is executing on background threads, back to the UI on the Main Thread.
         
-        
-    }else{
+    } else {
         
 //        If fileExistsAtUserProvidedPath is false quit program with Error.
         NSLog(@"File does not exist. Please input a valid file path.");
         [NSException raise:@"File does not exist!" format:@"%@ is not a valid path.", myPath];
-//        NSException will not be caught and cause a fatal error.
+//        NSException will not be caught and cause a fatal error. //This should be inaccessible since the NSOpenPanel makes sure we are selecting a valid file. So this could be removed entirely, here for good measure.
         
     }
     
@@ -108,18 +103,17 @@ NSString *myPath;
 - (void)viewDidLoad {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
-//    [_workerThreadCount setStringValue:@""];
-    [_checkFile setEnabled:false];
-    [_progressBar setDoubleValue:0.0];
-    [_progressBar setHidden:true];
-    [_workerThreadCount setStringValue:numberOfWorkerString];
+    [_checkFile setEnabled:false]; // Cannot click on the checkFile button if no file is selected ( cannot call LogChecker with nil filepath.
+    [_progressBar setDoubleValue:0.0]; // Set the progress to 0.
+    [_progressBar setHidden:true]; // Set it hidden since nothing is happening.
+    [_workerThreadCount setStringValue:numberOfWorkerString]; // set it to a string @"".
     
     
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeWorkerThreadCount:) name:@"changeWorkerThreadCount" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeVulnerabilityRate:) name:@"changeVulnerabilityRate" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeVulnerabilityCount:) name:@"changeVulnerabilityCount" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeProgressBarIndicator:) name:@"changeProgressBarIndicator" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeLevelIndicator:) name:@"changeLevelIndicator" object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeWorkerThreadCount:) name:@"changeWorkerThreadCount" object:nil]; // Add a NSNotification Observer on message name @"changeWorkerThreadCount" --> every time a message of this type is received in the NSNotificationCenter, the selector handleChangeWorkerThreadCount is called and we can update the UI.
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeVulnerabilityRate:) name:@"changeVulnerabilityRate" object:nil]; // Add a NSNotification Observer on message name @"changeVulnerabilityRate" --> every time a message of this type is received in the NSNotificationCenter, the selector handleChangeVulnerabilityRate is called and we can update the UI.
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeVulnerabilityCount:) name:@"changeVulnerabilityCount" object:nil]; // Add a NSNotification Observer on message name @"changeVulnerabilityCount" --> every time a message of this type is received in the NSNotificationCenter, the selector handleChangeVulnerabilityCount is called and we can update the UI.
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeProgressBarIndicator:) name:@"changeProgressBarIndicator" object:nil]; // Add a NSNotification Observer on message name @"changeProgressBarIndicator" --> every time a message of this type is received in the NSNotificationCenter, the selector handleChangeProgressBarIndicator is called and we can update the UI.
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleChangeLevelIndicator:) name:@"changeLevelIndicator" object:nil]; // Add a NSNotification Observer on message name @"changeLevelIndicator" --> every time a message of this type is received in the NSNotificationCenter, the selector handleChangeLevelIndicator is called and we can update the UI.
 
     
 }

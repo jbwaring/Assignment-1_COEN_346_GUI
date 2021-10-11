@@ -111,8 +111,9 @@
     while(!feof(file)) // feof() returns true iff we are at the end of file indicator of the inputed stream (so the loop will run for as long as lines are remaining)
     {
         int threadNumber = 0 ; // Set the initial threadNumber to 0
-        double previousVulnerabilityAverage = self->approximateVulnerabilityAverage;
+        double previousVulnerabilityAverage = self->approximateVulnerabilityAverage; // Make a copy of the vulnerability average before it is mutated.
 
+//        This deals with how to choose the number of threads. If the "~derivative" of the vulnerability average is negative (tendency to see less vulnerabilities, decrease number of threads. If the "~derivative" of the vulnerability average is positive (tendency to see more vulnerabilities, increase number of threads. (This is based on the supposition that vulnerabilities occur in lumps rather than homogenously in time. The max thread count is set to 64 but can be set to any reasonable value.
         if(deltaVulnerabilityAverage < 0){
             threadCount = threadCount - 2;
             if(threadCount <= 0){
@@ -127,27 +128,27 @@
 
 
         
-        for (int i = 1; i <= threadCount; i++)
-//            for (int i = 1; i <= threadCount; i++)
+        for (int i = 1; i <= threadCount; i++) // Create n = threadCount number of worker threads.
         {
-            NSString *line = [LogChecker readLineAsNSString:file];
-            if(!(line.length == 0)){
-                [self createThread:line];
+            NSString *line = [LogChecker readLineAsNSString:file]; // Store the next line in the file in NSSTring.
+            if(!(line.length == 0)){ //If the file has ended during this loop, the strings are nil this .lenght = 0 so we do not dispatch the thread. This enables us to not take into account the number of remaining lines in choosing the number of threads.
+                [self createThread:line]; //If the line exists, call createThread and message it a pointer to the line.
             }
         }
 
-        threadNumber = (int)threadsArray.count;
-        sharedThreadCount = threadNumber;
+        threadNumber = (int)threadsArray.count; // Get the number of threads that were created --> because of the .length condition, it might be different than threadCount.
+        sharedThreadCount = threadNumber; // Store this number in sharedThreadCount.
 
-        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned].
+        while(![self allThreadsReturned]){} //Loops until all threads return. Basically a [waitUntil allThreadsReturned]. --> This is one main area of improvement since this is "busy wait" which is really bad for battery life and performance.
             
-        deltaVulnerabilityAverage = (self->approximateVulnerabilityAverage - previousVulnerabilityAverage)/previousVulnerabilityAverage * 100;
+        deltaVulnerabilityAverage = (self->approximateVulnerabilityAverage - previousVulnerabilityAverage)/previousVulnerabilityAverage * 100; //All the threads have returned, compute the new "vulnerability average derivative"/
         
-    }
+    } // End of File
     
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ // 2 Seconds after we have finished reading the file, kill the timer. 2 seconds timeout is just a very conservative way of making sure we have the lastest available information shown on the UI.
         [self->timer invalidate]; // Remove the timer.
         });
+    
     fclose(file); // Close the file, we are done.
 }
 
